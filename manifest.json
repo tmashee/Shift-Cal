@@ -1,0 +1,22 @@
+{
+  "name": "Dual Shift Calendar",
+  "short_name": "Shift Calendar",
+  "description": "A responsive calendar app for displaying dual shift patterns",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSIzMiIgeT0iMzIiIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9IndoaXRlIj4KPHA+Jmx0O3BhdGggZD0iTTE5IDN2MmgtMlYzaDJNMTYgMTVWN0g4djhIMTZNOSA4aDZWOUg5VjhNOSAxMGg2djFIOVYxME05IDEyaDZ2MUg5VjEyTTcgMWgxMGEyIDIgMCAwIDEgMiAydjE4YTIgMiAwIDAgMS0yIDJINWEyIDIgMCAwIDEtMi0yVjFoMloiLz4mZ3Q7PC9wPgo8L3N2Zz4KPC9zdmc+",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iNjQiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSI4NSIgeT0iODUiIHdpZHRoPSIzNDIiIGhlaWdodD0iMzQyIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9IndoaXRlIj4KPHA+Jmx0O3BhdGggZD0iTTE5IDN2MmgtMlYzaDJNMTYgMTVWN0g4djhIMTZNOSA4aDZWOUg5VjhNOSAxMGg2djFIOVYxME05IDEyaDZ2MUg5VjEyTTcgMWgxMGEyIDIgMCAwIDEgMiAydjE4YTIgMiAwIDAgMS0yIDJINWEyIDIgMCAwIDEtMi0yVjFoMloiLz4mZ3Q7PC9wPgo8L3N2Zz4KPC9zdmc+",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

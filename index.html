@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <link rel="manifest" href="manifest.json">
+    <title>Dual Shift Calendar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="calendar-container">
+        <header class="calendar-header">
+            <div class="header-single-row">
+                <div class="toggle-section">
+                    <button class="toggle-btn active" id="toggleShift1" aria-pressed="true">
+                        <i class="fas fa-eye toggle-icon"></i>
+                        <span class="toggle-text">Shift 1</span>
+                    </button>
+                    <button class="toggle-btn active" id="toggleShift2" aria-pressed="true">
+                        <i class="fas fa-eye toggle-icon"></i>
+                        <span class="toggle-text">Shift 2</span>
+                    </button>
+                </div>
+                <div class="nav-section">
+                    <button class="nav-btn" id="prevYear" aria-label="Previous Year">&larr;</button>
+                    <h1 class="year-display" id="yearDisplay"></h1>
+                    <button class="nav-btn" id="nextYear" aria-label="Next Year">&rarr;</button>
+                </div>
+                <div class="home-section">
+                    <button class="nav-btn settings-btn" id="settingsBtn" title="Customize Shift Patterns" aria-label="Settings">⚙️</button>
+                    <button class="nav-btn overlap-btn" id="overlapBtn" title="View Shift Overlaps" aria-label="View Shift Overlaps">📊</button>
+                    <button class="nav-btn home-btn" id="homeBtn" title="Go to today" aria-label="Go to Today">🏠</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="calendar-scroll-container">
+            <div class="calendar-months" id="calendarMonths">
+                <!-- Monthly calendars will be generated here -->
+            </div>
+        </div>
+
+        <!-- Modal for day details -->
+        <div id="dayDetailsModal" class="modal" aria-modal="true" role="dialog" style="display:none;">
+            <div class="modal-content">
+                <span class="close" id="closeDayDetails" tabindex="0" role="button" aria-label="Close">&times;</span>
+                <div id="dayDetailsContent"></div>
+            </div>
+        </div>
+
+        <!-- Modal for day editor -->
+        <div id="dayEditorModal" class="modal day-editor-modal" aria-modal="true" role="dialog" style="display:none;">
+            <div class="modal-content">
+                <span class="close" id="closeDayEditor" tabindex="0" role="button" aria-label="Close">&times;</span>
+                
+                <div class="day-editor-header">
+                    <div class="day-editor-date" id="editorDate"></div>
+                    <div class="day-editor-info" id="editorInfo"></div>
+                </div>
+
+                <!-- Shift 1 Editor -->
+                <div class="shift-editor-section">
+                    <div class="shift-editor-header">
+                        <span class="shift-editor-title">Shift 1</span>
+                        <label class="override-toggle">
+                            <input type="checkbox" id="shift1Override" class="override-checkbox">
+                            <span>Custom Override</span>
+                        </label>
+                    </div>
+                    <div id="shift1Editor" class="shift-editor-disabled">
+                        <div class="shift-type-selector">
+                            <button type="button" class="shift-type-btn day-shift" data-shift="shift1" data-type="day">
+                                Day Shift
+                            </button>
+                            <button type="button" class="shift-type-btn night-shift" data-shift="shift1" data-type="night">
+                                Night Shift
+                            </button>
+                            <button type="button" class="shift-type-btn off-shift" data-shift="shift1" data-type="off">
+                                Off Day
+                            </button>
+                        </div>
+                        <div class="pattern-info" id="shift1PatternInfo"></div>
+                    </div>
+                </div>
+
+                <!-- Shift 2 Editor -->
+                <div class="shift-editor-section">
+                    <div class="shift-editor-header">
+                        <span class="shift-editor-title">Shift 2</span>
+                        <label class="override-toggle">
+                            <input type="checkbox" id="shift2Override" class="override-checkbox">
+                            <span>Custom Override</span>
+                        </label>
+                    </div>
+                    <div id="shift2Editor" class="shift-editor-disabled">
+                        <div class="shift-type-selector">
+                            <button type="button" class="shift-type-btn day-shift" data-shift="shift2" data-type="day">
+                                Day Shift
+                            </button>
+                            <button type="button" class="shift-type-btn night-shift" data-shift="shift2" data-type="night">
+                                Night Shift
+                            </button>
+                            <button type="button" class="shift-type-btn off-shift" data-shift="shift2" data-type="off">
+                                Off Day
+                            </button>
+                        </div>
+                        <div class="pattern-info" id="shift2PatternInfo"></div>
+                    </div>
+                </div>
+
+                <div class="day-editor-actions">
+                    <button id="editorCancel" class="editor-btn editor-btn-cancel">Cancel</button>
+                    <button id="editorReset" class="editor-btn editor-btn-reset">Reset to Pattern</button>
+                    <button id="editorSave" class="editor-btn editor-btn-save">Save Changes</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for shift overlap analysis -->
+        <div id="overlapAnalysisModal" class="modal" aria-modal="true" role="dialog" style="display:none;">
+            <div class="modal-content overlap-modal">
+                <span class="close" id="closeOverlapAnalysis" tabindex="0" role="button" aria-label="Close">&times;</span>
+                <h2>Shift Overlap Analysis</h2>
+                <div class="overlap-controls">
+                    <select id="overlapYearSelect" class="overlap-select">
+                        <!-- Years will be populated by JavaScript -->
+                    </select>
+                </div>
+                <div id="overlapAnalysisContent" class="overlap-content">
+                    <!-- Overlap analysis will be generated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for shift pattern settings -->
+        <div id="settingsModal" class="modal" aria-modal="true" role="dialog" style="display:none;">
+            <div class="modal-content settings-modal">
+                <span class="close" id="closeSettings" tabindex="0" role="button" aria-label="Close">&times;</span>
+                <h2>Customize Shift Patterns</h2>
+                
+                <div class="settings-tabs">
+                    <button class="tab-btn active" data-tab="shift1">Shift 1</button>
+                    <button class="tab-btn" data-tab="shift2">Shift 2</button>
+                    <button class="tab-btn" data-tab="general">General</button>
+                </div>
+
+                <div class="settings-content">
+                    <!-- Shift 1 Settings -->
+                    <div id="shift1-tab" class="tab-content active">
+                        <h3>Shift 1 Pattern</h3>
+                        <div class="setting-group">
+                            <label for="shift1Pattern">Pattern (comma-separated, positive=work, negative=off):</label>
+                            <input type="text" id="shift1Pattern" class="pattern-input" placeholder="3,-3,4,-4,3,-3,4,-3,3,-4,4,-3,3,-4,4,-4">
+                            <small>Example: 3,-3,4,-4 means 3 days on, 3 days off, 4 days on, 4 days off</small>
+                        </div>
+                        <div class="setting-group">
+                            <label for="shift1StartDate">Start Date:</label>
+                            <input type="date" id="shift1StartDate" class="date-input">
+                        </div>
+                        <div class="setting-group">
+                            <label for="shift1DayNightSwitch">Switch Day/Night every:</label>
+                            <input type="number" id="shift1DayNightSwitch" class="number-input" min="1" max="100" value="14">
+                            <span>work days</span>
+                        </div>
+                        <div class="setting-group">
+                            <label for="shift1StartShift">Starting Shift Type:</label>
+                            <select id="shift1StartShift" class="shift-select">
+                                <option value="day">Day Shift</option>
+                                <option value="night">Night Shift</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Shift 2 Settings -->
+                    <div id="shift2-tab" class="tab-content">
+                        <h3>Shift 2 Pattern</h3>
+                        <div class="setting-group">
+                            <label>Pattern Type:</label>
+                            <div class="radio-group">
+                                <label><input type="radio" name="shift2Type" value="pattern" checked> Custom Pattern</label>
+                                <label><input type="radio" name="shift2Type" value="cycle"> Cycle-based (current)</label>
+                            </div>
+                        </div>
+                        <div id="shift2-pattern-settings">
+                            <div class="setting-group">
+                                <label for="shift2Pattern">Pattern (comma-separated):</label>
+                                <input type="text" id="shift2Pattern" class="pattern-input" placeholder="2,-2,3,-2,2,-3">
+                            </div>
+                            <div class="setting-group">
+                                <label for="shift2StartDate">Start Date:</label>
+                                <input type="date" id="shift2StartDate" class="date-input">
+                            </div>
+                            <div class="setting-group">
+                                <label for="shift2DayNightSwitch">Switch Day/Night every:</label>
+                                <input type="number" id="shift2DayNightSwitch" class="number-input" min="1" max="100" value="14">
+                                <span>work days</span>
+                            </div>
+                        </div>
+                        <div id="shift2-cycle-settings" style="display:none;">
+                            <div class="setting-group">
+                                <label for="shift2CycleLength">Cycle Length (days):</label>
+                                <input type="number" id="shift2CycleLength" class="number-input" min="7" max="365" value="28">
+                            </div>
+                            <div class="setting-group">
+                                <label for="shift2StartDate2">Reference Date:</label>
+                                <input type="date" id="shift2StartDate2" class="date-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- General Settings -->
+                    <div id="general-tab" class="tab-content">
+                        <h3>General Settings</h3>
+                        <div class="setting-group">
+                            <label>
+                                <input type="checkbox" id="highlightWeekends"> Highlight Weekends
+                            </label>
+                        </div>
+                        <div class="setting-group">
+                            <label>
+                                <input type="checkbox" id="showShiftLabels" checked> Show Shift Labels
+                            </label>
+                        </div>
+                        <div class="setting-group">
+                            <label for="calendarWeeks">Calendar Weeks per Month:</label>
+                            <select id="calendarWeeks" class="shift-select">
+                                <option value="5">5 weeks</option>
+                                <option value="6">6 weeks</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button id="resetSettings" class="action-btn secondary-btn">Reset to Defaults</button>
+                    <button id="previewSettings" class="action-btn preview-btn">Preview</button>
+                    <button id="saveSettings" class="action-btn primary-btn">Save Changes</button>
+                </div>
+
+                <div class="pattern-help">
+                    <h4>Pattern Help</h4>
+                    <p><strong>Positive numbers:</strong> Work days (e.g., 3 = 3 consecutive work days)</p>
+                    <p><strong>Negative numbers:</strong> Off days (e.g., -2 = 2 consecutive days off)</p>
+                    <p><strong>Example:</strong> "4,-2,3,-3" = 4 work, 2 off, 3 work, 3 off, then repeat</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
