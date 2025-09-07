@@ -215,7 +215,7 @@ body {
 }
 
 .day-cell.today {
-    border-color: #667eea;
+    border-color: #0d7a25;
     border-width: 2px;
     box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
 }
@@ -232,7 +232,7 @@ body {
 }
 
 .day-cell.today .day-number {
-    background: #667eea;
+    background: #0d7a25;
     color: white;
 }
 
@@ -1374,7 +1374,7 @@ body {
 }
 
 .day-cell:hover {
-    border-color: #667eea;
+    border-color: #0d7a25;
 }
 
 @keyframes fadeIn {
