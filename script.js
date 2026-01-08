@@ -13,10 +13,19 @@ class DualShiftCalendar {
         };
         
         // Customizable Shift 1 Properties
-        this.shift1Pattern = [3,-3,4,-4,3,-3,4,-3,3,-4,4,-3,3,-4,4,-4];
-        this.shift1StartDate = new Date(2025, 6, 3); // July 3, 2025
+        this.shift1Pattern = [3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4];
+        this.shift1StartDate = new Date(2026, 10, 1); // November 1, 2026
         this.shift1DayNightSwitch = 14; // Switch every 14 work days
-        this.shift1StartsWithDay = true; // Starts with day shift
+        this.shift1StartsWithDay = false; // Starts with night shift
+
+        // Customizable Shift 2 Properties
+        this.shift2Type = 'cycle'; // cycle (legacy) or pattern
+        this.shift2Pattern = [2,-2,3,-2,2,-3];
+        this.shift2StartDate = new Date(2025, 5, 30); // June 30, 2025
+        this.shift2DayNightSwitch = 14;
+        this.shift2StartsWithDay = true;
+        this.shift2CycleLength = 28;
+        this.shift2CycleStartDate = new Date(2025, 5, 30);
         
         // Calendar display settings
         this.calendarWeeks = 5; // Number of weeks to show per month
@@ -92,6 +101,13 @@ class DualShiftCalendar {
                 if (prefs.shift1StartDate) this.shift1StartDate = new Date(prefs.shift1StartDate);
                 if (prefs.shift1DayNightSwitch) this.shift1DayNightSwitch = prefs.shift1DayNightSwitch;
                 if (prefs.shift1StartsWithDay !== undefined) this.shift1StartsWithDay = prefs.shift1StartsWithDay;
+                if (prefs.shift2Type) this.shift2Type = prefs.shift2Type;
+                if (prefs.shift2Pattern) this.shift2Pattern = prefs.shift2Pattern;
+                if (prefs.shift2StartDate) this.shift2StartDate = new Date(prefs.shift2StartDate);
+                if (prefs.shift2DayNightSwitch) this.shift2DayNightSwitch = prefs.shift2DayNightSwitch;
+                if (prefs.shift2StartsWithDay !== undefined) this.shift2StartsWithDay = prefs.shift2StartsWithDay;
+                if (prefs.shift2CycleLength) this.shift2CycleLength = prefs.shift2CycleLength;
+                if (prefs.shift2CycleStartDate) this.shift2CycleStartDate = new Date(prefs.shift2CycleStartDate);
                 if (prefs.calendarWeeks) this.calendarWeeks = prefs.calendarWeeks;
                 if (prefs.settings) this.settings = { ...this.settings, ...prefs.settings };
                 
@@ -124,6 +140,13 @@ class DualShiftCalendar {
                 shift1StartDate: this.shift1StartDate.toISOString(),
                 shift1DayNightSwitch: this.shift1DayNightSwitch,
                 shift1StartsWithDay: this.shift1StartsWithDay,
+                shift2Type: this.shift2Type,
+                shift2Pattern: this.shift2Pattern,
+                shift2StartDate: this.shift2StartDate.toISOString(),
+                shift2DayNightSwitch: this.shift2DayNightSwitch,
+                shift2StartsWithDay: this.shift2StartsWithDay,
+                shift2CycleLength: this.shift2CycleLength,
+                shift2CycleStartDate: this.shift2CycleStartDate.toISOString(),
                 calendarWeeks: this.calendarWeeks,
                 settings: this.settings,
                 dayOverrides: Array.from(this.dayOverrides.entries()) // Convert Map to Array for storage
@@ -594,65 +617,54 @@ class DualShiftCalendar {
         return patternShifts;
     }
     
-    calculateShift1(date) {
-        // Use customizable pattern and reference date
-        const referenceDate = this.shift1StartDate;
-        
-        // Calculate days since reference
+    calculatePatternShift(date, options) {
+        const { pattern, startDate, dayNightSwitch, startsWithDay } = options;
+        if (!Array.isArray(pattern) || pattern.length === 0) {
+            return this.shiftTypes.OFF;
+        }
+        const referenceDate = startDate;
         const timeDiff = date.getTime() - referenceDate.getTime();
         const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-        
-        // Use customizable pattern
-        const pattern = this.shift1Pattern;
-        
-        // Calculate total pattern length
         const totalPatternDays = pattern.reduce((sum, num) => sum + Math.abs(num), 0);
-        
-        // Find position in the pattern cycle
+        if (totalPatternDays === 0) return this.shiftTypes.OFF;
         const cycleDay = ((daysDiff % totalPatternDays) + totalPatternDays) % totalPatternDays;
-        
-        // Find which segment and position within segment
+
         let currentDay = 0;
         let workDaysSeenSoFar = 0;
-        
+
         for (let i = 0; i < pattern.length; i++) {
             const segmentLength = Math.abs(pattern[i]);
             const isWorkSegment = pattern[i] > 0;
-            
-            // Check if current date falls within this segment
+
             if (cycleDay >= currentDay && cycleDay < currentDay + segmentLength) {
                 if (!isWorkSegment) {
                     return this.shiftTypes.OFF;
                 }
-                
-                // This is a work day - calculate which work day number it is
+
                 const dayInSegment = cycleDay - currentDay;
                 const workDayNumber = workDaysSeenSoFar + dayInSegment + 1;
-                
-                // Determine if it's day or night shift based on configurable switch interval
-                const switchInterval = this.shift1DayNightSwitch * 2; // Full cycle (day + night)
+                const switchInterval = dayNightSwitch * 2;
                 const workDayInCycle = ((workDayNumber - 1) % switchInterval) + 1;
-                
-                // Determine shift type based on starting shift and cycle position
-                let isDayShift;
-                if (this.shift1StartsWithDay) {
-                    isDayShift = workDayInCycle <= this.shift1DayNightSwitch;
-                } else {
-                    isDayShift = workDayInCycle > this.shift1DayNightSwitch;
-                }
-                
+                const isDayShift = startsWithDay ? workDayInCycle <= dayNightSwitch : workDayInCycle > dayNightSwitch;
                 return isDayShift ? this.shiftTypes.DAY : this.shiftTypes.NIGHT;
             }
-            
-            // Move to next segment
+
             currentDay += segmentLength;
             if (isWorkSegment) {
                 workDaysSeenSoFar += segmentLength;
             }
         }
-        
-        // Should never reach here, but fallback
+
         return this.shiftTypes.OFF;
+    }
+
+    calculateShift1(date) {
+        return this.calculatePatternShift(date, {
+            pattern: this.shift1Pattern,
+            startDate: this.shift1StartDate,
+            dayNightSwitch: this.shift1DayNightSwitch,
+            startsWithDay: this.shift1StartsWithDay
+        });
     }
     
     getShiftForCycleDay(cycleDay, isDayShift) {
@@ -706,52 +718,49 @@ class DualShiftCalendar {
     }
     
     calculateShift2(date) {
-        // Shift 2: Pattern starting June 30th
-        // Base pattern: 2 on, 2 off, 3 on, 2 off, 2 on, 3 off (14 days)
-        // First cycle: positions 0-1=day, 4-6=night, 9-10=day
-        // Second cycle: positions 0-1=night, 4-6=day, 9-10=night
-        const year = date.getFullYear();
-        const referenceDate = new Date(year, 5, 30); // June 30th of the current year
-        
-        // Calculate days since June 30th
+        if (this.shift2Type === 'pattern') {
+            return this.calculatePatternShift(date, {
+                pattern: this.shift2Pattern,
+                startDate: this.shift2StartDate,
+                dayNightSwitch: this.shift2DayNightSwitch,
+                startsWithDay: this.shift2StartsWithDay
+            });
+        }
+
+        // Cycle-based legacy calculation
+        const referenceDate = this.shift2CycleStartDate || new Date(date.getFullYear(), 5, 30);
         const timeDiff = date.getTime() - referenceDate.getTime();
         const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-        
-        // 28-day full cycle (14-day pattern × 2 with alternating day/night)
-        const fullCycleDay = ((daysDiff % 28) + 28) % 28;
-        const isFirstCycle = fullCycleDay < 14;
-        const patternDay = fullCycleDay % 14;
-        
+        const fullCycle = this.shift2CycleLength || 28;
+        const halfCycle = fullCycle / 2;
+        const fullCycleDay = ((daysDiff % fullCycle) + fullCycle) % fullCycle;
+        const isFirstCycle = fullCycleDay < halfCycle;
+        const patternDay = fullCycleDay % halfCycle;
+
         let isWorkDay = false;
         let shiftType = null;
-        
+
         if (patternDay >= 0 && patternDay <= 1) {
-            // Days 0-1: 2 on (day in first cycle, night in second)
             isWorkDay = true;
             shiftType = isFirstCycle ? this.shiftTypes.DAY : this.shiftTypes.NIGHT;
         } else if (patternDay >= 2 && patternDay <= 3) {
-            // Days 2-3: 2 off
             isWorkDay = false;
         } else if (patternDay >= 4 && patternDay <= 6) {
-            // Days 4-6: 3 on (night in first cycle, day in second)
             isWorkDay = true;
             shiftType = isFirstCycle ? this.shiftTypes.NIGHT : this.shiftTypes.DAY;
         } else if (patternDay >= 7 && patternDay <= 8) {
-            // Days 7-8: 2 off
             isWorkDay = false;
         } else if (patternDay >= 9 && patternDay <= 10) {
-            // Days 9-10: 2 on (day in first cycle, night in second)
             isWorkDay = true;
             shiftType = isFirstCycle ? this.shiftTypes.DAY : this.shiftTypes.NIGHT;
         } else if (patternDay >= 11 && patternDay <= 13) {
-            // Days 11-13: 3 off
             isWorkDay = false;
         }
-        
+
         if (!isWorkDay) {
             return this.shiftTypes.OFF;
         }
-        
+
         return shiftType;
     }
     
@@ -774,9 +783,9 @@ class DualShiftCalendar {
         
         // Show the reference dates being used
         const year = startDate.getFullYear();
-        console.log('Shift 1: Exact 56-day pattern: 3,-3,4,-4,3,-3,4,-3,3,-4,4,-3,3,-4,4,-4');
-        console.log('Shift 1 Reference: July 3, 2025 (Pattern starts with first "3" - 3 days on)');
-        console.log('After 14 work days: Day→Night, using same pattern');
+        console.log('Shift 1: Exact 56-day pattern: 3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4');
+        console.log('Shift 1 Reference: November 1, 2026 (Pattern starts with first "3" - 3 days on, Night shift)');
+        console.log('After 14 work days: Night→Day, using same pattern');
         
         const referenceDate2 = new Date(year, 5, 30); // June 30th
         console.log('Shift 2 Reference (June 30): ' + referenceDate2.toDateString());
@@ -794,10 +803,10 @@ class DualShiftCalendar {
             const dayName = testDate.toLocaleDateString('en-US', { weekday: 'short' });
             
             // Calculate cycle info for Shift 1
-            const referenceDate1 = new Date(2025, 6, 3); // July 3, 2025
+            const referenceDate1 = new Date(2026, 10, 1); // November 1, 2026
             const timeDiff1 = testDate.getTime() - referenceDate1.getTime();
             const daysDiff1 = Math.floor(timeDiff1 / (1000 * 60 * 60 * 24));
-            const pattern = [3,-3,4,-4,3,-3,4,-3,3,-4,4,-3,3,-4,4,-4];
+            const pattern = [3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4];
             const totalPatternDays = pattern.reduce((sum, num) => sum + Math.abs(num), 0);
             const cycleDay1 = ((daysDiff1 % totalPatternDays) + totalPatternDays) % totalPatternDays;
             
@@ -838,9 +847,9 @@ class DualShiftCalendar {
                        String(cycleDay1).padStart(8) + ' | ' + String(cycleDay2).padStart(8));
         }
         
-        console.log('\nShift 1: Exact pattern 3,-3,4,-4,3,-3,4,-3,3,-4,4,-3,3,-4,4,-4 (56 days total)');
-        console.log('Reference: July 3, 2025 starts with "3" (3 days on)');
-        console.log('Work days 1-14: Day shift, Work days 15-28: Night shift (repeating 28-work-day cycle)');
+        console.log('\nShift 1: Exact pattern 3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4 (56 days total)');
+        console.log('Reference: November 1, 2026 starts with "3" (3 days on, Night shift)');
+        console.log('Work days 1-14: Night shift, Work days 15-28: Day shift (repeating 28-work-day cycle)');
         console.log('Pattern segments continue regardless of day/night switch');
         console.log('Shift 2 Pattern (28-day cycle): 2 on 2 off, 3 on 2 off, 2 on 3 off, then repeat with day/night swapped (starts June 30)');
     }
@@ -1081,9 +1090,16 @@ class DualShiftCalendar {
         document.getElementById('shift1DayNightSwitch').value = this.shift1DayNightSwitch;
         document.getElementById('shift1StartShift').value = this.shift1StartsWithDay ? 'day' : 'night';
         
-        // Load Shift 2 settings (defaulting to current cycle-based system)
-        document.getElementById('shift2StartDate2').value = this.formatDateForInput(new Date(2025, 5, 30));
-        document.getElementById('shift2CycleLength').value = 28;
+        // Load Shift 2 settings
+        document.getElementById('shift2Pattern').value = this.shift2Pattern.join(',');
+        document.getElementById('shift2StartDate').value = this.formatDateForInput(this.shift2StartDate);
+        document.getElementById('shift2DayNightSwitch').value = this.shift2DayNightSwitch;
+        document.getElementById('shift2StartDate2').value = this.formatDateForInput(this.shift2CycleStartDate);
+        document.getElementById('shift2CycleLength').value = this.shift2CycleLength;
+
+        const shift2TypeRadios = document.querySelectorAll('input[name="shift2Type"]');
+        shift2TypeRadios.forEach(r => r.checked = r.value === this.shift2Type);
+        this.toggleShift2Settings(this.shift2Type);
         
         // Load general settings
         document.getElementById('highlightWeekends').checked = this.settings?.highlightWeekends || false;
@@ -1092,6 +1108,7 @@ class DualShiftCalendar {
     }
     
     formatDateForInput(date) {
+        if (!(date instanceof Date) || isNaN(date)) return '';
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -1161,10 +1178,17 @@ class DualShiftCalendar {
     resetToDefaults() {
         if (confirm('Reset all settings to defaults? This will reload the calendar.')) {
             // Reset to original hardcoded values
-            this.shift1Pattern = [3,-3,4,-4,3,-3,4,-3,3,-4,4,-3,3,-4,4,-4];
-            this.shift1StartDate = new Date(2025, 6, 3); // July 3, 2025
+            this.shift1Pattern = [3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4];
+            this.shift1StartDate = new Date(2026, 10, 1); // November 1, 2026
             this.shift1DayNightSwitch = 14;
-            this.shift1StartsWithDay = true;
+            this.shift1StartsWithDay = false;
+            this.shift2Type = 'cycle';
+            this.shift2Pattern = [2,-2,3,-2,2,-3];
+            this.shift2StartDate = new Date(2025, 5, 30);
+            this.shift2DayNightSwitch = 14;
+            this.shift2StartsWithDay = true;
+            this.shift2CycleLength = 28;
+            this.shift2CycleStartDate = new Date(2025, 5, 30);
             this.calendarWeeks = 5;
             this.settings = {
                 highlightWeekends: false,
@@ -1263,6 +1287,13 @@ class DualShiftCalendar {
             }
             
             settings.shift2DayNightSwitch = parseInt(document.getElementById('shift2DayNightSwitch').value) || 14;
+            settings.shift2StartsWithDay = true;
+        } else {
+            settings.shift2CycleLength = parseInt(document.getElementById('shift2CycleLength').value) || 28;
+            const shift2CycleStartDateStr = document.getElementById('shift2StartDate2').value;
+            if (shift2CycleStartDateStr) {
+                settings.shift2CycleStartDate = new Date(shift2CycleStartDateStr);
+            }
         }
         
         // General settings
@@ -1279,6 +1310,13 @@ class DualShiftCalendar {
             shift1StartDate: new Date(this.shift1StartDate),
             shift1DayNightSwitch: this.shift1DayNightSwitch,
             shift1StartsWithDay: this.shift1StartsWithDay,
+            shift2Type: this.shift2Type,
+            shift2Pattern: [...this.shift2Pattern],
+            shift2StartDate: new Date(this.shift2StartDate),
+            shift2DayNightSwitch: this.shift2DayNightSwitch,
+            shift2StartsWithDay: this.shift2StartsWithDay,
+            shift2CycleLength: this.shift2CycleLength,
+            shift2CycleStartDate: new Date(this.shift2CycleStartDate),
             calendarWeeks: this.calendarWeeks,
             settings: {...this.settings}
         };
@@ -1289,6 +1327,13 @@ class DualShiftCalendar {
         if (newSettings.shift1StartDate) this.shift1StartDate = newSettings.shift1StartDate;
         if (newSettings.shift1DayNightSwitch) this.shift1DayNightSwitch = newSettings.shift1DayNightSwitch;
         if (newSettings.shift1StartsWithDay !== undefined) this.shift1StartsWithDay = newSettings.shift1StartsWithDay;
+        if (newSettings.shift2Type) this.shift2Type = newSettings.shift2Type;
+        if (newSettings.shift2Pattern) this.shift2Pattern = newSettings.shift2Pattern;
+        if (newSettings.shift2StartDate) this.shift2StartDate = newSettings.shift2StartDate;
+        if (newSettings.shift2DayNightSwitch) this.shift2DayNightSwitch = newSettings.shift2DayNightSwitch;
+        if (newSettings.shift2StartsWithDay !== undefined) this.shift2StartsWithDay = newSettings.shift2StartsWithDay;
+        if (newSettings.shift2CycleLength) this.shift2CycleLength = newSettings.shift2CycleLength;
+        if (newSettings.shift2CycleStartDate) this.shift2CycleStartDate = newSettings.shift2CycleStartDate;
         if (newSettings.calendarWeeks) this.calendarWeeks = newSettings.calendarWeeks;
         if (newSettings.settings) this.settings = {...this.settings, ...newSettings.settings};
         
