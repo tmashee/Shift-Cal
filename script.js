@@ -14,7 +14,7 @@ class DualShiftCalendar {
         
         // Customizable Shift 1 Properties
         this.shift1Pattern = [3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4];
-        this.shift1StartDate = new Date(2026, 10, 1); // November 1, 2026
+        this.shift1StartDate = this.getDefaultShift1StartDate(); // January 11, 2026
         this.shift1DayNightSwitch = 14; // Switch every 14 work days
         this.shift1StartsWithDay = false; // Starts with night shift
 
@@ -79,6 +79,37 @@ class DualShiftCalendar {
             };
         }
     }
+
+    getDefaultShift1StartDate() {
+        return new Date(2026, 0, 11);
+    }
+
+    normalizeDates(preferencesLoaded = false) {
+        if (!this.isValidDate(this.shift1StartDate)) {
+            this.shift1StartDate = this.getDefaultShift1StartDate();
+            if (preferencesLoaded) {
+                console.warn('Invalid Shift 1 start date found in saved preferences. Reverting to default January 11, 2026.');
+            }
+        }
+
+        if (!this.isValidDate(this.shift2StartDate)) {
+            this.shift2StartDate = new Date(2025, 5, 30);
+            if (preferencesLoaded) {
+                console.warn('Invalid Shift 2 start date found in saved preferences. Reverting to default June 30, 2025.');
+            }
+        }
+
+        if (!this.isValidDate(this.shift2CycleStartDate)) {
+            this.shift2CycleStartDate = new Date(2025, 5, 30);
+            if (preferencesLoaded) {
+                console.warn('Invalid Shift 2 cycle start date found in saved preferences. Reverting to default June 30, 2025.');
+            }
+        }
+    }
+
+    isValidDate(value) {
+        return value instanceof Date && !isNaN(value);
+    }
     
     saveSettings() {
         try {
@@ -89,6 +120,7 @@ class DualShiftCalendar {
     }
     
     loadUserPreferences() {
+        let loaded = false;
         try {
             // Try to load new format first
             const newPreferences = localStorage.getItem(this.storageKey + '_preferences');
@@ -115,8 +147,7 @@ class DualShiftCalendar {
                 if (prefs.dayOverrides) {
                     this.dayOverrides = new Map(prefs.dayOverrides); // Convert Array back to Map
                 }
-                
-                return;
+                loaded = true;
             }
             
             // Fallback to old format for backward compatibility
@@ -130,6 +161,8 @@ class DualShiftCalendar {
             this.shiftVisibility = { shift1: true, shift2: true };
             this.dayOverrides = new Map();
         }
+
+        this.normalizeDates(loaded);
     }
     
     saveUserPreferences() {
@@ -783,8 +816,9 @@ class DualShiftCalendar {
         
         // Show the reference dates being used
         const year = startDate.getFullYear();
+        const shift1ReferenceDate = new Date(this.shift1StartDate);
         console.log('Shift 1: Exact 56-day pattern: 3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4');
-        console.log('Shift 1 Reference: November 1, 2026 (Pattern starts with first "3" - 3 days on, Night shift)');
+        console.log(`Shift 1 Reference: ${shift1ReferenceDate.toDateString()} (Pattern starts with first "3" - 3 days on, Night shift)`);
         console.log('After 14 work days: Night→Day, using same pattern');
         
         const referenceDate2 = new Date(year, 5, 30); // June 30th
@@ -803,7 +837,7 @@ class DualShiftCalendar {
             const dayName = testDate.toLocaleDateString('en-US', { weekday: 'short' });
             
             // Calculate cycle info for Shift 1
-            const referenceDate1 = new Date(2026, 10, 1); // November 1, 2026
+            const referenceDate1 = new Date(this.shift1StartDate);
             const timeDiff1 = testDate.getTime() - referenceDate1.getTime();
             const daysDiff1 = Math.floor(timeDiff1 / (1000 * 60 * 60 * 24));
             const pattern = [3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4];
@@ -848,7 +882,7 @@ class DualShiftCalendar {
         }
         
         console.log('\nShift 1: Exact pattern 3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4 (56 days total)');
-        console.log('Reference: November 1, 2026 starts with "3" (3 days on, Night shift)');
+        console.log(`Reference: ${shift1ReferenceDate.toDateString()} starts with "3" (3 days on, Night shift)`);
         console.log('Work days 1-14: Night shift, Work days 15-28: Day shift (repeating 28-work-day cycle)');
         console.log('Pattern segments continue regardless of day/night switch');
         console.log('Shift 2 Pattern (28-day cycle): 2 on 2 off, 3 on 2 off, 2 on 3 off, then repeat with day/night swapped (starts June 30)');
@@ -1179,7 +1213,7 @@ class DualShiftCalendar {
         if (confirm('Reset all settings to defaults? This will reload the calendar.')) {
             // Reset to original hardcoded values
             this.shift1Pattern = [3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4];
-            this.shift1StartDate = new Date(2026, 10, 1); // November 1, 2026
+            this.shift1StartDate = this.getDefaultShift1StartDate(); // January 11, 2026
             this.shift1DayNightSwitch = 14;
             this.shift1StartsWithDay = false;
             this.shift2Type = 'cycle';
