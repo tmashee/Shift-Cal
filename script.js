@@ -31,7 +31,7 @@ class DualShiftCalendar {
         // Customizable Shift 2 Properties
         this.shift2Type = 'cycle'; // cycle (legacy) or pattern
         this.shift2Pattern = [2,-2,3,-2,2,-3];
-        this.shift2StartDate = this.createUTCDate(2025, 5, 29); // June 29, 2025
+        this.shift2StartDate = this.createUTCDate(2025, 5, 30); // June 30, 2025
         this.shift2DayNightSwitch = 14;
         this.shift2StartsWithDay = true;
         this.shift2CycleLength = 28;
@@ -123,16 +123,16 @@ class DualShiftCalendar {
         }
 
         if (!this.isValidDate(this.shift2StartDate)) {
-            this.shift2StartDate = this.createUTCDate(2025, 5, 29);
+            this.shift2StartDate = this.createUTCDate(2025, 5, 30);
             if (preferencesLoaded) {
-                console.warn('Invalid Shift 2 start date found in saved preferences. Reverting to default June 29, 2025.');
+                console.warn('Invalid Shift 2 start date found in saved preferences. Reverting to default June 30, 2025.');
             }
         }
 
         if (!this.isValidDate(this.shift2CycleStartDate)) {
-            this.shift2CycleStartDate = this.createUTCDate(2025, 5, 29);
+            this.shift2CycleStartDate = this.createUTCDate(2025, 5, 30);
             if (preferencesLoaded) {
-                console.warn('Invalid Shift 2 cycle start date found in saved preferences. Reverting to default June 29, 2025.');
+                console.warn('Invalid Shift 2 cycle start date found in saved preferences. Reverting to default June 30, 2025.');
             }
         }
     }
