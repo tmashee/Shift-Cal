@@ -16,11 +16,11 @@
                 <div class="toggle-section">
                     <button class="toggle-btn active" id="toggleShift1" aria-pressed="true">
                         <i class="fas fa-eye toggle-icon"></i>
-                        <span class="toggle-text">Shift 1</span>
+                        <span class="toggle-text">Intel</span>
                     </button>
                     <button class="toggle-btn active" id="toggleShift2" aria-pressed="true">
                         <i class="fas fa-eye toggle-icon"></i>
-                        <span class="toggle-text">Shift 2</span>
+                        <span class="toggle-text">Pfizer</span>
                     </button>
                 </div>
                 <div class="nav-section">
@@ -60,10 +60,10 @@
                     <div class="day-editor-info" id="editorInfo"></div>
                 </div>
 
-                <!-- Shift 1 Editor -->
+                <!-- Intel Editor -->
                 <div class="shift-editor-section">
                     <div class="shift-editor-header">
-                        <span class="shift-editor-title">Shift 1</span>
+                        <span class="shift-editor-title">Intel</span>
                         <label class="override-toggle">
                             <input type="checkbox" id="shift1Override" class="override-checkbox">
                             <span>Custom Override</span>
@@ -85,10 +85,10 @@
                     </div>
                 </div>
 
-                <!-- Shift 2 Editor -->
+                <!-- Pfizer Editor -->
                 <div class="shift-editor-section">
                     <div class="shift-editor-header">
-                        <span class="shift-editor-title">Shift 2</span>
+                        <span class="shift-editor-title">Pfizer</span>
                         <label class="override-toggle">
                             <input type="checkbox" id="shift2Override" class="override-checkbox">
                             <span>Custom Override</span>
@@ -141,19 +141,19 @@
                 <h2>Customize Shift Patterns</h2>
                 
                 <div class="settings-tabs">
-                    <button class="tab-btn active" data-tab="shift1">Shift 1</button>
-                    <button class="tab-btn" data-tab="shift2">Shift 2</button>
+                    <button class="tab-btn active" data-tab="shift1">Intel</button>
+                    <button class="tab-btn" data-tab="shift2">Pfizer</button>
                     <button class="tab-btn" data-tab="general">General</button>
                 </div>
 
                 <div class="settings-content">
-                    <!-- Shift 1 Settings -->
+                    <!-- Intel Settings -->
                     <div id="shift1-tab" class="tab-content active">
-                        <h3>Shift 1 Pattern</h3>
+                        <h3>Intel Pattern</h3>
                         <div class="setting-group">
                             <label for="shift1Pattern">Pattern (comma-separated, positive=work, negative=off):</label>
-                            <input type="text" id="shift1Pattern" class="pattern-input" placeholder="3,-3,4,-4,3,-3,4,-3,3,-4,4,-3,3,-4,4,-4">
-                            <small>Example: 3,-3,4,-4 means 3 days on, 3 days off, 4 days on, 4 days off</small>
+                            <input type="text" id="shift1Pattern" class="pattern-input" placeholder="4,-3,3,-4,4,-3,3,-4">
+                            <small>Intel fixed pattern: 4 on, 3 off, 3 on, 4 off repeated; nights start Jan 11 2026 and switch every 4 weeks.</small>
                         </div>
                         <div class="setting-group">
                             <label for="shift1StartDate">Start Date:</label>
@@ -161,8 +161,8 @@
                         </div>
                         <div class="setting-group">
                             <label for="shift1DayNightSwitch">Switch Day/Night every:</label>
-                            <input type="number" id="shift1DayNightSwitch" class="number-input" min="1" max="100" value="14">
-                            <span>work days</span>
+                            <input type="number" id="shift1DayNightSwitch" class="number-input" min="1" max="100" value="28">
+                            <span>calendar days</span>
                         </div>
                         <div class="setting-group">
                             <label for="shift1StartShift">Starting Shift Type:</label>
@@ -173,9 +173,9 @@
                         </div>
                     </div>
 
-                    <!-- Shift 2 Settings -->
+                    <!-- Pfizer Settings -->
                     <div id="shift2-tab" class="tab-content">
-                        <h3>Shift 2 Pattern</h3>
+                        <h3>Pfizer Pattern</h3>
                         <div class="setting-group">
                             <label>Pattern Type:</label>
                             <div class="radio-group">

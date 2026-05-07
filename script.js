@@ -1,6 +1,6 @@
 class DualShiftCalendar {
     constructor() {
-        this.currentDate = new Date();
+        this.currentDate = this.getTodayUTC();
         this.monthNames = [
             'January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'
@@ -12,20 +12,30 @@ class DualShiftCalendar {
             OFF: 'off'
         };
         
+        // Shift display names (Intel for shift 1, Pfizer for shift 2)
+        this.shiftNames = {
+            '1': 'Intel',
+            '2': 'Pfizer',
+            'shift1': 'Intel',
+            'shift2': 'Pfizer'
+        };
+        
         // Customizable Shift 1 Properties
+        // Intel uses a 56-day off-day pattern anchored on January 11, 2026.
         this.shift1Pattern = [3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4];
+        this.shift1SecondHalfPattern = [3,-4,4,-3,3,-4,4,-4,3,-3,4,-4,3,-3,4,-3];
         this.shift1StartDate = this.getDefaultShift1StartDate(); // January 11, 2026
-        this.shift1DayNightSwitch = 14; // Switch every 14 work days
-        this.shift1StartsWithDay = false; // Starts with night shift
+        this.shift1DayNightSwitch = 28; // Switch every 28 calendar days
+        this.shift1StartsWithDay = false; // Start with night shift
 
         // Customizable Shift 2 Properties
         this.shift2Type = 'cycle'; // cycle (legacy) or pattern
         this.shift2Pattern = [2,-2,3,-2,2,-3];
-        this.shift2StartDate = new Date(2025, 5, 30); // June 30, 2025
+        this.shift2StartDate = this.createUTCDate(2025, 5, 29); // June 29, 2025
         this.shift2DayNightSwitch = 14;
         this.shift2StartsWithDay = true;
         this.shift2CycleLength = 28;
-        this.shift2CycleStartDate = new Date(2025, 5, 30);
+        this.shift2CycleStartDate = this.createUTCDate(2025, 5, 30);
         
         // Calendar display settings
         this.calendarWeeks = 5; // Number of weeks to show per month
@@ -81,7 +91,27 @@ class DualShiftCalendar {
     }
 
     getDefaultShift1StartDate() {
-        return new Date(2026, 0, 11);
+        return this.createUTCDate(2026, 0, 11);
+    }
+
+    // Return the Intel anchor date for the pattern cycle.
+    // For dates from July onward, the second half of the year resets on July 1st.
+    getShift1StartDate(date) {
+        const targetDate = this.normalizeUTCDate(date || this.getTodayUTC());
+        const julyFirst = this.createUTCDate(targetDate.getUTCFullYear(), 6, 1);
+        if (targetDate >= julyFirst) {
+            return julyFirst;
+        }
+        return this.shift1StartDate;
+    }
+
+    getShift1Pattern(date) {
+        const targetDate = this.normalizeUTCDate(date || this.getTodayUTC());
+        const julyFirst = this.createUTCDate(targetDate.getUTCFullYear(), 6, 1);
+        if (targetDate >= julyFirst) {
+            return this.shift1SecondHalfPattern;
+        }
+        return this.shift1Pattern;
     }
 
     normalizeDates(preferencesLoaded = false) {
@@ -93,22 +123,54 @@ class DualShiftCalendar {
         }
 
         if (!this.isValidDate(this.shift2StartDate)) {
-            this.shift2StartDate = new Date(2025, 5, 30);
+            this.shift2StartDate = this.createUTCDate(2025, 5, 29);
             if (preferencesLoaded) {
-                console.warn('Invalid Shift 2 start date found in saved preferences. Reverting to default June 30, 2025.');
+                console.warn('Invalid Shift 2 start date found in saved preferences. Reverting to default June 29, 2025.');
             }
         }
 
         if (!this.isValidDate(this.shift2CycleStartDate)) {
-            this.shift2CycleStartDate = new Date(2025, 5, 30);
+            this.shift2CycleStartDate = this.createUTCDate(2025, 5, 29);
             if (preferencesLoaded) {
-                console.warn('Invalid Shift 2 cycle start date found in saved preferences. Reverting to default June 30, 2025.');
+                console.warn('Invalid Shift 2 cycle start date found in saved preferences. Reverting to default June 29, 2025.');
             }
         }
     }
 
     isValidDate(value) {
         return value instanceof Date && !isNaN(value);
+    }
+
+    createUTCDate(year, month, date) {
+        return new Date(Date.UTC(year, month, date));
+    }
+
+    normalizeUTCDate(date) {
+        if (!(date instanceof Date) || isNaN(date)) return null;
+        const utcDate = new Date(date.getTime());
+        utcDate.setUTCHours(0, 0, 0, 0);
+        return utcDate;
+    }
+
+    getTodayUTC() {
+        return this.normalizeUTCDate(new Date());
+    }
+
+    getUTCDateTime(date) {
+        return this.normalizeUTCDate(date).getTime();
+    }
+
+    getUTCDateDiff(startDate, endDate) {
+        const startMs = this.getUTCDateTime(startDate);
+        const endMs = this.getUTCDateTime(endDate);
+        return Math.floor((endMs - startMs) / (1000 * 60 * 60 * 24));
+    }
+
+    isSameUTCDate(dateA, dateB) {
+        if (!(dateA instanceof Date) || !(dateB instanceof Date)) return false;
+        return dateA.getUTCFullYear() === dateB.getUTCFullYear() &&
+               dateA.getUTCMonth() === dateB.getUTCMonth() &&
+               dateA.getUTCDate() === dateB.getUTCDate();
     }
     
     saveSettings() {
@@ -130,16 +192,16 @@ class DualShiftCalendar {
                 
                 // Load customizable settings if they exist
                 if (prefs.shift1Pattern) this.shift1Pattern = prefs.shift1Pattern;
-                if (prefs.shift1StartDate) this.shift1StartDate = new Date(prefs.shift1StartDate);
+                if (prefs.shift1StartDate) this.shift1StartDate = this.normalizeUTCDate(new Date(prefs.shift1StartDate));
                 if (prefs.shift1DayNightSwitch) this.shift1DayNightSwitch = prefs.shift1DayNightSwitch;
                 if (prefs.shift1StartsWithDay !== undefined) this.shift1StartsWithDay = prefs.shift1StartsWithDay;
                 if (prefs.shift2Type) this.shift2Type = prefs.shift2Type;
                 if (prefs.shift2Pattern) this.shift2Pattern = prefs.shift2Pattern;
-                if (prefs.shift2StartDate) this.shift2StartDate = new Date(prefs.shift2StartDate);
+                if (prefs.shift2StartDate) this.shift2StartDate = this.normalizeUTCDate(new Date(prefs.shift2StartDate));
                 if (prefs.shift2DayNightSwitch) this.shift2DayNightSwitch = prefs.shift2DayNightSwitch;
                 if (prefs.shift2StartsWithDay !== undefined) this.shift2StartsWithDay = prefs.shift2StartsWithDay;
                 if (prefs.shift2CycleLength) this.shift2CycleLength = prefs.shift2CycleLength;
-                if (prefs.shift2CycleStartDate) this.shift2CycleStartDate = new Date(prefs.shift2CycleStartDate);
+                if (prefs.shift2CycleStartDate) this.shift2CycleStartDate = this.normalizeUTCDate(new Date(prefs.shift2CycleStartDate));
                 if (prefs.calendarWeeks) this.calendarWeeks = prefs.calendarWeeks;
                 if (prefs.settings) this.settings = { ...this.settings, ...prefs.settings };
                 
@@ -199,15 +261,15 @@ class DualShiftCalendar {
     }
     
     preloadAdjacentMonths() {
-        const prevMonth = new Date(this.currentDate);
-        prevMonth.setMonth(prevMonth.getMonth() - 1);
+        const prevMonth = new Date(this.currentDate.getTime());
+        prevMonth.setUTCMonth(prevMonth.getUTCMonth() - 1);
         
-        const nextMonth = new Date(this.currentDate);
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const nextMonth = new Date(this.currentDate.getTime());
+        nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
         
         // Cache calculations for adjacent months
         [prevMonth, nextMonth].forEach(date => {
-            const key = `${date.getFullYear()}-${date.getMonth()}`;
+            const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`;
             if (!this.calendarCache.has(key)) {
                 this.cacheMonthData(date);
             }
@@ -268,17 +330,17 @@ class DualShiftCalendar {
     }
     
     previousYear() {
-        this.currentDate.setFullYear(this.currentDate.getFullYear() - 1);
+        this.currentDate.setUTCFullYear(this.currentDate.getUTCFullYear() - 1);
         this.renderCalendar();
     }
     
     nextYear() {
-        this.currentDate.setFullYear(this.currentDate.getFullYear() + 1);
+        this.currentDate.setUTCFullYear(this.currentDate.getUTCFullYear() + 1);
         this.renderCalendar();
     }
     
     goToToday() {
-        this.currentDate = new Date();
+        this.currentDate = this.getTodayUTC();
         this.renderCalendar();
     }
     
@@ -382,7 +444,7 @@ class DualShiftCalendar {
         const calendarMonths = document.getElementById('calendarMonths');
         calendarMonths.innerHTML = '';
         
-        const year = this.currentDate.getFullYear();
+        const year = this.currentDate.getUTCFullYear();
         
         // Create all 12 months for the current year
         for (let month = 0; month < 12; month++) {
@@ -391,10 +453,10 @@ class DualShiftCalendar {
         }
         
         // Scroll to current month if it's the current year
-        const today = new Date();
-        if (year === today.getFullYear()) {
+        const today = this.getTodayUTC();
+        if (year === today.getUTCFullYear()) {
             setTimeout(() => {
-                const currentMonthSection = calendarMonths.children[today.getMonth()];
+                const currentMonthSection = calendarMonths.children[today.getUTCMonth()];
                 if (currentMonthSection) {
                     currentMonthSection.scrollIntoView({ 
                         behavior: 'smooth', 
@@ -418,7 +480,7 @@ class DualShiftCalendar {
         // Weekdays header
         const weekdays = document.createElement('div');
         weekdays.className = 'weekdays';
-        const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         dayNames.forEach(day => {
             const weekday = document.createElement('div');
             weekday.className = 'weekday';
@@ -431,7 +493,7 @@ class DualShiftCalendar {
         const daysGrid = document.createElement('div');
         daysGrid.className = 'days-grid';
         
-        const monthData = this.calculateMonthShifts(new Date(year, month, 1));
+        const monthData = this.calculateMonthShifts(this.createUTCDate(year, month, 1));
         
         monthData.forEach(dayData => {
             const dayCell = this.createDayCell(dayData, 0);
@@ -445,33 +507,33 @@ class DualShiftCalendar {
     
     getCurrentMonthYear() {
         return {
-            month: this.currentDate.getMonth(),
-            year: this.currentDate.getFullYear()
+            month: this.currentDate.getUTCMonth(),
+            year: this.currentDate.getUTCFullYear()
         };
     }
     
     calculateMonthShifts(date) {
-        const year = date.getFullYear();
-        const month = date.getMonth();
+        const year = date.getUTCFullYear();
+        const month = date.getUTCMonth();
         const monthData = [];
         
-        // Get first day of the month and adjust for Monday start
-        const firstDay = new Date(year, month, 1);
-        let startDate = new Date(firstDay);
-        const dayOfWeek = (firstDay.getDay() + 6) % 7; // Convert Sunday=0 to Monday=0
-        startDate.setDate(startDate.getDate() - dayOfWeek);
+        // Get first day of the month and adjust for Sunday start
+        const firstDay = this.createUTCDate(year, month, 1);
+        const startDate = new Date(firstDay.getTime());
+        const dayOfWeek = firstDay.getUTCDay(); // Sunday=0, Monday=1, ...
+        startDate.setUTCDate(startDate.getUTCDate() - dayOfWeek);
         
         // Calculate days based on configurable weeks (default 5 weeks = 35 days, 6 weeks = 42 days)
         const totalDays = this.calendarWeeks * 7;
         for (let i = 0; i < totalDays; i++) {
-            const currentDay = new Date(startDate);
-            currentDay.setDate(startDate.getDate() + i);
+            const currentDay = new Date(startDate.getTime());
+            currentDay.setUTCDate(startDate.getUTCDate() + i);
             
             monthData.push({
-                date: new Date(currentDay),
+                date: new Date(currentDay.getTime()),
                 shifts: this.calculateShifts(currentDay),
-                isCurrentMonth: currentDay.getMonth() === month,
-                isToday: currentDay.toDateString() === new Date().toDateString()
+                isCurrentMonth: currentDay.getUTCMonth() === month,
+                isToday: this.isSameUTCDate(currentDay, new Date())
             });
         }
         
@@ -493,7 +555,7 @@ class DualShiftCalendar {
         }
         
         // Add weekend highlighting if enabled
-        if (this.settings.highlightWeekends && (date.getDay() === 0 || date.getDay() === 6)) {
+        if (this.settings.highlightWeekends && (date.getUTCDay() === 0 || date.getUTCDay() === 6)) {
             dayCell.classList.add('weekend');
         }
         
@@ -506,7 +568,7 @@ class DualShiftCalendar {
         // Create day number
         const dayNumber = document.createElement('div');
         dayNumber.className = 'day-number';
-        dayNumber.textContent = date.getDate();
+        dayNumber.textContent = date.getUTCDate();
         dayCell.appendChild(dayNumber);
         
         // Create shifts container
@@ -542,7 +604,7 @@ class DualShiftCalendar {
     
     createShiftElement(shiftType, shiftNumber, date) {
         const shift = document.createElement('div');
-        shift.className = `shift shift-${shiftType}`;
+        shift.className = `shift shift-${shiftType} shift-${shiftNumber}`;
         
         const shiftLabel = document.createElement('div');
         shiftLabel.className = 'shift-label';
@@ -550,13 +612,13 @@ class DualShiftCalendar {
         
         const shiftText = document.createElement('div');
         shiftText.className = 'shift-text';
-        shiftText.textContent = this.getShiftDisplayText(shiftType);
+        shiftText.textContent = `${this.getShiftName(shiftNumber)} ${this.getShiftDisplayText(shiftType)}`;
         
         shift.appendChild(shiftLabel);
         shift.appendChild(shiftText);
         
         // Add tooltip for additional information
-        shift.title = `Shift ${shiftNumber}: ${this.getShiftDisplayText(shiftType)} on ${date.toLocaleDateString()}`;
+        shift.title = `${this.getShiftName(shiftNumber)} ${this.getShiftDisplayText(shiftType)} on ${date.toLocaleDateString(undefined, { timeZone: 'UTC' })}`;
         
         return shift;
     }
@@ -565,11 +627,12 @@ class DualShiftCalendar {
         const dateStr = date.toLocaleDateString('en-US', { 
             weekday: 'long', 
             month: 'long', 
-            day: 'numeric' 
+            day: 'numeric',
+            timeZone: 'UTC'
         });
         
-        const shift1Text = this.shiftVisibility.shift1 ? `Shift 1: ${this.getShiftDisplayText(shifts.shift1)}` : '';
-        const shift2Text = this.shiftVisibility.shift2 ? `Shift 2: ${this.getShiftDisplayText(shifts.shift2)}` : '';
+        const shift1Text = this.shiftVisibility.shift1 ? `${this.getShiftName('1')} ${this.getShiftDisplayText(shifts.shift1)}` : '';
+        const shift2Text = this.shiftVisibility.shift2 ? `${this.getShiftName('2')} ${this.getShiftDisplayText(shifts.shift2)}` : '';
         
         return `${dateStr}. ${shift1Text}${shift1Text && shift2Text ? ', ' : ''}${shift2Text}`;
     }
@@ -587,10 +650,10 @@ class DualShiftCalendar {
         if (!modal || !content) return;
 
         content.innerHTML = `
-            <h2>${dateInfo.date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
+            <h2>${dateInfo.date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</h2>
             <div class="modal-shifts">
-                <div class="modal-shift"><strong>Shift 1:</strong> ${this.getShiftDisplayText(dateInfo.shifts.shift1)}</div>
-                <div class="modal-shift"><strong>Shift 2:</strong> ${this.getShiftDisplayText(dateInfo.shifts.shift2)}</div>
+                <div class="modal-shift"><strong>${this.getShiftName('1')}:</strong> ${this.getShiftDisplayText(dateInfo.shifts.shift1)}</div>
+                <div class="modal-shift"><strong>${this.getShiftName('2')}:</strong> ${this.getShiftDisplayText(dateInfo.shifts.shift2)}</div>
             </div>
             <div class="modal-today">${dateInfo.isToday ? '<span class="today-label">Today</span>' : ''}</div>
         `;
@@ -606,10 +669,10 @@ class DualShiftCalendar {
         
         // Find and highlight the selected day
         const dayNumber = date.getDate();
-        const month = date.getMonth();
-        const year = date.getFullYear();
+        const month = date.getUTCMonth();
+        const year = date.getUTCFullYear();
         
-        if (month === this.currentDate.getMonth() && year === this.currentDate.getFullYear()) {
+        if (month === this.currentDate.getUTCMonth() && year === this.currentDate.getUTCFullYear()) {
             const dayCells = document.querySelectorAll('.day-cell:not(.other-month)');
             const dayCell = Array.from(dayCells).find(cell => {
                 const cellDayNumber = parseInt(cell.querySelector('.day-number').textContent);
@@ -651,13 +714,12 @@ class DualShiftCalendar {
     }
     
     calculatePatternShift(date, options) {
-        const { pattern, startDate, dayNightSwitch, startsWithDay } = options;
+        const { pattern, startDate, dayNightSwitch, startsWithDay, switchByCalendarDays = false } = options;
         if (!Array.isArray(pattern) || pattern.length === 0) {
             return this.shiftTypes.OFF;
         }
-        const referenceDate = startDate;
-        const timeDiff = date.getTime() - referenceDate.getTime();
-        const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        const referenceDate = this.normalizeUTCDate(startDate);
+        const daysDiff = this.getUTCDateDiff(referenceDate, date);
         const totalPatternDays = pattern.reduce((sum, num) => sum + Math.abs(num), 0);
         if (totalPatternDays === 0) return this.shiftTypes.OFF;
         const cycleDay = ((daysDiff % totalPatternDays) + totalPatternDays) % totalPatternDays;
@@ -677,8 +739,16 @@ class DualShiftCalendar {
                 const dayInSegment = cycleDay - currentDay;
                 const workDayNumber = workDaysSeenSoFar + dayInSegment + 1;
                 const switchInterval = dayNightSwitch * 2;
-                const workDayInCycle = ((workDayNumber - 1) % switchInterval) + 1;
-                const isDayShift = startsWithDay ? workDayInCycle <= dayNightSwitch : workDayInCycle > dayNightSwitch;
+
+                let isDayShift;
+                if (switchByCalendarDays) {
+                    const calendarDayInCycle = ((daysDiff % switchInterval) + switchInterval) % switchInterval;
+                    isDayShift = startsWithDay ? calendarDayInCycle < dayNightSwitch : calendarDayInCycle >= dayNightSwitch;
+                } else {
+                    const workDayInCycle = ((workDayNumber - 1) % switchInterval) + 1;
+                    isDayShift = startsWithDay ? workDayInCycle <= dayNightSwitch : workDayInCycle > dayNightSwitch;
+                }
+
                 return isDayShift ? this.shiftTypes.DAY : this.shiftTypes.NIGHT;
             }
 
@@ -693,62 +763,15 @@ class DualShiftCalendar {
 
     calculateShift1(date) {
         return this.calculatePatternShift(date, {
-            pattern: this.shift1Pattern,
-            startDate: this.shift1StartDate,
+            pattern: this.getShift1Pattern(date),
+            startDate: this.getShift1StartDate(date),
             dayNightSwitch: this.shift1DayNightSwitch,
-            startsWithDay: this.shift1StartsWithDay
+            startsWithDay: this.shift1StartsWithDay,
+            switchByCalendarDays: true
         });
     }
     
-    getShiftForCycleDay(cycleDay, isDayShift) {
-        let isWorkDay = false;
-        
-        if (isDayShift) {
-            // Day shift pattern: 3 on 3 off, 4 on 4 off, 3 on 3 off, 4 on 4 off (28 days)
-            if (cycleDay >= 0 && cycleDay <= 2) {
-                isWorkDay = true; // 3 on
-            } else if (cycleDay >= 3 && cycleDay <= 5) {
-                isWorkDay = false; // 3 off
-            } else if (cycleDay >= 6 && cycleDay <= 9) {
-                isWorkDay = true; // 4 on
-            } else if (cycleDay >= 10 && cycleDay <= 13) {
-                isWorkDay = false; // 4 off
-            } else if (cycleDay >= 14 && cycleDay <= 16) {
-                isWorkDay = true; // 3 on
-            } else if (cycleDay >= 17 && cycleDay <= 19) {
-                isWorkDay = false; // 3 off
-            } else if (cycleDay >= 20 && cycleDay <= 23) {
-                isWorkDay = true; // 4 on
-            } else if (cycleDay >= 24 && cycleDay <= 27) {
-                isWorkDay = false; // 4 off
-            }
-        } else {
-            // Night shift pattern: 3 on 4 off, 4 on 3 off, 3 on 4 off, 4 on 4 off (28 days)
-            if (cycleDay >= 0 && cycleDay <= 2) {
-                isWorkDay = true; // 3 on
-            } else if (cycleDay >= 3 && cycleDay <= 6) {
-                isWorkDay = false; // 4 off
-            } else if (cycleDay >= 7 && cycleDay <= 10) {
-                isWorkDay = true; // 4 on
-            } else if (cycleDay >= 11 && cycleDay <= 13) {
-                isWorkDay = false; // 3 off
-            } else if (cycleDay >= 14 && cycleDay <= 16) {
-                isWorkDay = true; // 3 on
-            } else if (cycleDay >= 17 && cycleDay <= 20) {
-                isWorkDay = false; // 4 off
-            } else if (cycleDay >= 21 && cycleDay <= 24) {
-                isWorkDay = true; // 4 on
-            } else if (cycleDay >= 25 && cycleDay <= 27) {
-                isWorkDay = false; // 4 off
-            }
-        }
-        
-        if (!isWorkDay) {
-            return this.shiftTypes.OFF;
-        }
-        
-        return isDayShift ? this.shiftTypes.DAY : this.shiftTypes.NIGHT;
-    }
+
     
     calculateShift2(date) {
         if (this.shift2Type === 'pattern') {
@@ -761,9 +784,8 @@ class DualShiftCalendar {
         }
 
         // Cycle-based legacy calculation
-        const referenceDate = this.shift2CycleStartDate || new Date(date.getFullYear(), 5, 30);
-        const timeDiff = date.getTime() - referenceDate.getTime();
-        const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        const referenceDate = this.normalizeUTCDate(this.shift2CycleStartDate || this.createUTCDate(2025, 5, 29));
+        const daysDiff = this.getUTCDateDiff(referenceDate, date);
         const fullCycle = this.shift2CycleLength || 28;
         const halfCycle = fullCycle / 2;
         const fullCycleDay = ((daysDiff % fullCycle) + fullCycle) % fullCycle;
@@ -810,36 +832,40 @@ class DualShiftCalendar {
         }
     }
     
+    getShiftName(shiftNumber) {
+        return this.shiftNames[shiftNumber] || `Shift ${shiftNumber}`;
+    }
+    
     // Debug method to verify patterns
     debugShiftPattern(startDate, days = 21) {
         console.log('=== SHIFT PATTERN DEBUG ===');
         
         // Show the reference dates being used
         const year = startDate.getFullYear();
-        const shift1ReferenceDate = new Date(this.shift1StartDate);
-        console.log('Shift 1: Exact 56-day pattern: 3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4');
-        console.log(`Shift 1 Reference: ${shift1ReferenceDate.toDateString()} (Pattern starts with first "3" - 3 days on, Night shift)`);
-        console.log('After 14 work days: Night→Day, using same pattern');
+        const shift1ReferenceDate = this.normalizeUTCDate(new Date(this.shift1StartDate));
+        console.log('Shift 1: Fixed 56-day pattern: 3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4');
+        console.log(`Shift 1 Reference: ${shift1ReferenceDate.toUTCString()} (Pattern starts with first "3" - 3 days on, Night shift)`);
+        console.log('From July 1st onward, the second half of the year resets on July 1st with the same 3-day/night pattern anchor.');
+        console.log('Every 28 calendar days: Night↔Day switch');
         
-        const referenceDate2 = new Date(year, 5, 30); // June 30th
-        console.log('Shift 2 Reference (June 30): ' + referenceDate2.toDateString());
+        const referenceDate2 = this.createUTCDate(2025, 5, 30); // June 29th
+        console.log('Shift 2 Reference (June 30): ' + referenceDate2.toUTCString());
         
-        console.log('Starting from: ' + startDate.toDateString());
+        console.log('Starting from: ' + this.normalizeUTCDate(startDate).toUTCString());
         console.log('Day | Date | Weekday | Shift1 | Shift2 | S1-WorkDay | S1-Cycle | S2-Cycle');
         console.log('----|------|---------|--------|--------|------------|----------|----------');
         
         for (let i = 0; i < days; i++) {
-            const testDate = new Date(startDate);
-            testDate.setDate(startDate.getDate() + i);
+            const testDate = new Date(startDate.getTime());
+            testDate.setUTCDate(startDate.getUTCDate() + i);
             
             const shift1 = this.calculateShift1(testDate);
             const shift2 = this.calculateShift2(testDate);
-            const dayName = testDate.toLocaleDateString('en-US', { weekday: 'short' });
+            const dayName = testDate.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
             
             // Calculate cycle info for Shift 1
-            const referenceDate1 = new Date(this.shift1StartDate);
-            const timeDiff1 = testDate.getTime() - referenceDate1.getTime();
-            const daysDiff1 = Math.floor(timeDiff1 / (1000 * 60 * 60 * 24));
+            const referenceDate1 = this.normalizeUTCDate(new Date(this.shift1StartDate));
+            const daysDiff1 = this.getUTCDateDiff(referenceDate1, testDate);
             const pattern = [3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4];
             const totalPatternDays = pattern.reduce((sum, num) => sum + Math.abs(num), 0);
             const cycleDay1 = ((daysDiff1 % totalPatternDays) + totalPatternDays) % totalPatternDays;
@@ -867,8 +893,7 @@ class DualShiftCalendar {
                 }
             }
             
-            const timeDiff2 = testDate.getTime() - referenceDate2.getTime();
-            const daysDiff2 = Math.floor(timeDiff2 / (1000 * 60 * 60 * 24));
+            const daysDiff2 = this.getUTCDateDiff(referenceDate2, testDate);
             const cycleDay2 = ((daysDiff2 % 28) + 28) % 28;
             
             const padNum = (num) => String(num).padStart(2);
@@ -881,11 +906,11 @@ class DualShiftCalendar {
                        String(cycleDay1).padStart(8) + ' | ' + String(cycleDay2).padStart(8));
         }
         
-        console.log('\nShift 1: Exact pattern 3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4 (56 days total)');
-        console.log(`Reference: ${shift1ReferenceDate.toDateString()} starts with "3" (3 days on, Night shift)`);
-        console.log('Work days 1-14: Night shift, Work days 15-28: Day shift (repeating 28-work-day cycle)');
+        console.log('\nShift 1: 56-day pattern 3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4');
+        console.log(`Reference: ${shift1ReferenceDate.toUTCString()} starts with "3" (3 days on, Night shift)`);
+        console.log('Work days 1-14: Night shift (on calendar days 0-13), Work days 15-28: Day shift (on calendar days 14-27, repeating 28-day cycle)');
         console.log('Pattern segments continue regardless of day/night switch');
-        console.log('Shift 2 Pattern (28-day cycle): 2 on 2 off, 3 on 2 off, 2 on 3 off, then repeat with day/night swapped (starts June 30)');
+        console.log('Shift 2 Pattern (28-day cycle): 2 on 2 off, 3 on 2 off, 2 on 3 off, then repeat with day/night swapped (starts June 29)');
     }
     
     debugVisibilityState() {
@@ -904,7 +929,7 @@ class DualShiftCalendar {
     // Day Editor Methods
     showDayEditor(date, shifts) {
         const modal = document.getElementById('dayEditorModal');
-        this.currentEditingDate = new Date(date);
+        this.currentEditingDate = this.normalizeUTCDate(new Date(date));
         
         // Populate editor with current data
         this.populateDayEditor(date, shifts);
@@ -921,7 +946,8 @@ class DualShiftCalendar {
             weekday: 'long', 
             year: 'numeric', 
             month: 'long', 
-            day: 'numeric' 
+            day: 'numeric',
+            timeZone: 'UTC'
         });
         
         document.getElementById('editorDate').textContent = dateStr;
@@ -1102,7 +1128,7 @@ class DualShiftCalendar {
     }
     
     getDateKey(date) {
-        return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+        return `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}`;
     }
     
     // Settings Management Methods
@@ -1138,14 +1164,14 @@ class DualShiftCalendar {
         // Load general settings
         document.getElementById('highlightWeekends').checked = this.settings?.highlightWeekends || false;
         document.getElementById('showShiftLabels').checked = this.settings?.showShiftLabels !== false;
-        document.getElementById('calendarWeeks').value = this.calendarWeeks || 5;
+        document.getElementById('calendarWeeks').value = this.calendarWeeks || 4;
     }
     
     formatDateForInput(date) {
         if (!(date instanceof Date) || isNaN(date)) return '';
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     }
     
@@ -1214,18 +1240,21 @@ class DualShiftCalendar {
             // Reset to original hardcoded values
             this.shift1Pattern = [3,-3,4,-4,3,-3,4,-4,4,-3,3,-4,4,-3,3,-4];
             this.shift1StartDate = this.getDefaultShift1StartDate(); // January 11, 2026
-            this.shift1DayNightSwitch = 14;
+            this.shift1DayNightSwitch = 28;
             this.shift1StartsWithDay = false;
             this.shift2Type = 'cycle';
             this.shift2Pattern = [2,-2,3,-2,2,-3];
-            this.shift2StartDate = new Date(2025, 5, 30);
+            this.shift2StartDate = this.createUTCDate(2025, 5, 29);
             this.shift2DayNightSwitch = 14;
             this.shift2StartsWithDay = true;
             this.shift2CycleLength = 28;
-            this.shift2CycleStartDate = new Date(2025, 5, 30);
+            this.shift2CycleStartDate = this.createUTCDate(2025, 5, 29);
             this.calendarWeeks = 5;
             this.settings = {
-                highlightWeekends: false,
+                theme: 'default',
+                showWeekNumbers: false,
+                highlightWeekends: true,
+                compactMode: false,
                 showShiftLabels: true
             };
             
@@ -1293,7 +1322,7 @@ class DualShiftCalendar {
         
         const shift1StartDateStr = document.getElementById('shift1StartDate').value;
         if (shift1StartDateStr) {
-            settings.shift1StartDate = new Date(shift1StartDateStr);
+            settings.shift1StartDate = this.normalizeUTCDate(new Date(shift1StartDateStr));
         }
         
         settings.shift1DayNightSwitch = parseInt(document.getElementById('shift1DayNightSwitch').value) || 14;
@@ -1317,7 +1346,7 @@ class DualShiftCalendar {
             
             const shift2StartDateStr = document.getElementById('shift2StartDate').value;
             if (shift2StartDateStr) {
-                settings.shift2StartDate = new Date(shift2StartDateStr);
+                settings.shift2StartDate = this.normalizeUTCDate(new Date(shift2StartDateStr));
             }
             
             settings.shift2DayNightSwitch = parseInt(document.getElementById('shift2DayNightSwitch').value) || 14;
@@ -1326,7 +1355,7 @@ class DualShiftCalendar {
             settings.shift2CycleLength = parseInt(document.getElementById('shift2CycleLength').value) || 28;
             const shift2CycleStartDateStr = document.getElementById('shift2StartDate2').value;
             if (shift2CycleStartDateStr) {
-                settings.shift2CycleStartDate = new Date(shift2CycleStartDateStr);
+                settings.shift2CycleStartDate = this.normalizeUTCDate(new Date(shift2CycleStartDateStr));
             }
         }
         
@@ -1437,19 +1466,19 @@ class DualShiftCalendar {
         this.setupOverlapModalListeners();
         
         // Generate initial analysis for current year
-        this.generateOverlapAnalysis(this.currentDate.getFullYear());
+        this.generateOverlapAnalysis(this.currentDate.getUTCFullYear());
     }
     
     populateYearDropdown(yearSelect) {
         yearSelect.innerHTML = '';
-        const currentYear = new Date().getFullYear();
+        const currentYear = this.getTodayUTC().getUTCFullYear();
         
         // Add years from current-2 to current+5
         for (let year = currentYear - 2; year <= currentYear + 5; year++) {
             const option = document.createElement('option');
             option.value = year;
             option.textContent = year;
-            if (year === this.currentDate.getFullYear()) {
+            if (year === this.currentDate.getUTCFullYear()) {
                 option.selected = true;
             }
             yearSelect.appendChild(option);
@@ -1506,12 +1535,12 @@ class DualShiftCalendar {
     }
     
     calculateMonthOverlaps(year, month) {
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
         const overlaps = [];
-        const today = new Date();
+        const today = this.getTodayUTC();
         
         for (let day = 1; day <= daysInMonth; day++) {
-            const date = new Date(year, month, day);
+            const date = this.createUTCDate(year, month, day);
             const shifts = this.calculateShifts(date);
             
             // Check if both shifts are working (not OFF)
@@ -1521,10 +1550,10 @@ class DualShiftCalendar {
             if (shift1Working && shift2Working) {
                 overlaps.push({
                     day: day,
-                    date: new Date(date),
+                    date: new Date(date.getTime()),
                     shift1Type: shifts.shift1,
                     shift2Type: shifts.shift2,
-                    isToday: date.toDateString() === today.toDateString()
+                    isToday: this.isSameUTCDate(date, today)
                 });
             }
         }
@@ -1550,7 +1579,7 @@ class DualShiftCalendar {
             <div class="overlap-days-list">
                 ${monthData.overlapDays.map(overlap => `
                     <div class="overlap-day ${overlap.isToday ? 'today' : ''}" 
-                         title="${overlap.date.toDateString()}\nShift 1: ${this.getShiftDisplayText(overlap.shift1Type)}\nShift 2: ${this.getShiftDisplayText(overlap.shift2Type)}">
+                         title="${overlap.date.toLocaleDateString(undefined, { timeZone: 'UTC' })}\n${this.getShiftName('1')}: ${this.getShiftDisplayText(overlap.shift1Type)}\n${this.getShiftName('2')}: ${this.getShiftDisplayText(overlap.shift2Type)}">
                         ${overlap.day}
                     </div>
                 `).join('')}
@@ -1630,7 +1659,8 @@ const utils = {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
-            day: 'numeric'
+            day: 'numeric',
+            timeZone: 'UTC'
         });
     },
     
@@ -1645,9 +1675,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const calendar = new DualShiftCalendar();
 
     // Debug: Show the shift pattern for the current month
-    const today = new Date();
-    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    console.log('Shift patterns for ' + calendar.monthNames[today.getMonth()] + ' ' + today.getFullYear() + ':');
+    const today = calendar.getTodayUTC();
+    const firstOfMonth = calendar.createUTCDate(today.getUTCFullYear(), today.getUTCMonth(), 1);
+    console.log('Shift patterns for ' + calendar.monthNames[today.getUTCMonth()] + ' ' + today.getUTCFullYear() + ':');
     calendar.debugShiftPattern(firstOfMonth, 14);
 
     // Modal close logic
